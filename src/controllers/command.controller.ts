@@ -167,3 +167,7 @@ const getPriorityValue = (priority: string): number => {
   const priorities = { low: 1, medium: 2, high: 3, urgent: 4 }
   return priorities[priority as keyof typeof priorities] || 2
 }
+
+// Default export
+const commandController = { sendCommand, getCommandStatus, respondToCommand, getCommands }
+export default commandController

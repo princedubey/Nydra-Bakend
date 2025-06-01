@@ -74,3 +74,4 @@ DeviceSchema.index({ userId: 1, isOnline: 1 })
 DeviceSchema.index({ deviceId: 1 })
 
 export const Device = mongoose.model<IDevice>("Device", DeviceSchema)
+export default Device

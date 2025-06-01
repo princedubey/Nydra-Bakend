@@ -52,3 +52,7 @@ export const authenticateDevice = async (req: AuthRequest, res: Response, next: 
     res.status(401).json({ error: "Invalid device token." })
   }
 }
+
+// Default export
+const authMiddleware = { authenticateUser, authenticateDevice }
+export default authMiddleware

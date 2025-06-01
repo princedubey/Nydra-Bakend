@@ -97,3 +97,5 @@ export const setupWebSocket = (io: Server) => {
 
   logger.info("✅ WebSocket server initialized")
 }
+
+export { setupWebSocket as default }

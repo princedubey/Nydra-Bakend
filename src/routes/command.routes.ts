@@ -14,4 +14,8 @@ router.post("/respond/:id", authenticateDevice, asyncHandler(respondToCommand))
 
 router.get("/", authenticateUser, asyncHandler(getCommands))
 
+// Named export
+export const commandRoutes = router
+
+// Default export
 export default router

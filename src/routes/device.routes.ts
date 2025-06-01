@@ -19,4 +19,8 @@ router.patch("/:id/status", authenticateUser, asyncHandler(updateDeviceStatus))
 
 router.post("/ping", authenticateDevice, asyncHandler(pingDevice))
 
+// Named export
+export const deviceRoutes = router
+
+// Default export
 export default router

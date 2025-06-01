@@ -79,3 +79,7 @@ export const getProfile = async (req: any, res: Response) => {
     throw error
   }
 }
+
+// Default export
+const authController = { register, login, getProfile }
+export default authController

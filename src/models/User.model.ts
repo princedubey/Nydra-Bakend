@@ -74,3 +74,4 @@ UserSchema.methods.toJSON = function () {
 }
 
 export const User = mongoose.model<IUser>("User", UserSchema)
+export default User

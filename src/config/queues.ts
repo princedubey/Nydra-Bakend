@@ -26,3 +26,5 @@ export const setupQueues = async (): Promise<void> => {
     throw error
   }
 }
+
+export { setupQueues as default }

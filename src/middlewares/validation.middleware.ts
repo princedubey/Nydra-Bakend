@@ -44,3 +44,13 @@ export const commandSchema = Joi.object({
   priority: Joi.string().valid("low", "medium", "high", "urgent").default("medium"),
   scheduledAt: Joi.date().optional(),
 })
+
+// Default export
+const validationMiddleware = {
+  validateRequest,
+  registerSchema,
+  loginSchema,
+  deviceRegistrationSchema,
+  commandSchema,
+}
+export default validationMiddleware

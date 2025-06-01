@@ -47,3 +47,5 @@ export const createError = (message: string, statusCode = 500): AppError => {
   error.isOperational = true
   return error
 }
+
+export { errorHandler as default }

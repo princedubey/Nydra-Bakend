@@ -100,3 +100,4 @@ CommandSchema.index({ targetDeviceId: 1, status: 1 })
 CommandSchema.index({ createdAt: -1 })
 
 export const Command = mongoose.model<ICommand>("Command", CommandSchema)
+export default Command

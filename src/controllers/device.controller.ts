@@ -107,3 +107,7 @@ export const pingDevice = async (req: AuthRequest, res: Response) => {
     throw error
   }
 }
+
+// Default export
+const deviceController = { registerDevice, getMyDevices, updateDeviceStatus, pingDevice }
+export default deviceController
