@@ -5,6 +5,7 @@ import Device from '../models/Device';
 import { catchAsync } from '../utils/catchAsync';
 import { ApiError } from '../utils/apiError';
 import { getIoInstance } from '../websocket';
+import { AuthenticatedRequest } from '../types';
 
 // Generate device token
 const generateDeviceToken = (userId: string, deviceId: string): string => {
@@ -21,14 +22,19 @@ const generateDeviceToken = (userId: string, deviceId: string): string => {
 // Register a new device
 export const registerDevice = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user) {
+      return next(new ApiError('User not authenticated', 401));
+    }
+
     const { name, deviceType, platform, capabilities, metadata } = req.body;
-    const userId = req.user.id;
+    const userId = authReq.user._id;
 
     // Generate unique device ID
     const deviceId = uuidv4();
     
     // Generate device token
-    const token = generateDeviceToken(userId, deviceId);
+    const token = generateDeviceToken(userId.toString(), deviceId);
 
     // Create new device
     const device = await Device.create({
@@ -57,9 +63,13 @@ export const registerDevice = catchAsync(
 
 // Get all devices for a user
 export const getDevices = catchAsync(
-  async (req: Request, res: Response) => {
-    const userId = req.user.id;
+  async (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user) {
+      return next(new ApiError('User not authenticated', 401));
+    }
 
+    const userId = authReq.user._id;
     const devices = await Device.find({ userId }).select('-token');
 
     res.status(200).json({
@@ -73,9 +83,14 @@ export const getDevices = catchAsync(
 // Update device status
 export const updateDeviceStatus = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user) {
+      return next(new ApiError('User not authenticated', 401));
+    }
+
     const { id } = req.params;
     const { isOnline } = req.body;
-    const userId = req.user.id;
+    const userId = authReq.user._id;
 
     // Find device
     const device = await Device.findOne({ _id: id, userId });
@@ -110,8 +125,13 @@ export const updateDeviceStatus = catchAsync(
 // Delete a device
 export const deleteDevice = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user) {
+      return next(new ApiError('User not authenticated', 401));
+    }
+
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = authReq.user._id;
 
     const device = await Device.findOneAndDelete({ _id: id, userId });
     if (!device) {

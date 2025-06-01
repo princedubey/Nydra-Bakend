@@ -5,13 +5,22 @@ import { catchAsync } from '../utils/catchAsync';
 import { ApiError } from '../utils/apiError';
 import { getIoInstance } from '../websocket';
 import { queueCommand } from '../workers/commandQueue';
+import { AuthenticatedRequest, DeviceAuthenticatedRequest } from '../types';
 
 // Send a command to a device
 export const sendCommand = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as DeviceAuthenticatedRequest;
+    if (!authReq.user) {
+      return next(new ApiError('User not authenticated', 401));
+    }
+    if (!authReq.device) {
+      return next(new ApiError('Device not authenticated', 401));
+    }
+
     const { targetDeviceId, commandType, command, parameters, executeAt, priority } = req.body;
-    const userId = req.user.id;
-    const sourceDeviceId = req.device.id;
+    const userId = authReq.user._id;
+    const sourceDeviceId = authReq.device._id;
 
     // Check if target device exists and belongs to user
     const targetDevice = await Device.findOne({
@@ -60,8 +69,13 @@ export const sendCommand = catchAsync(
 // Get command status
 export const getCommandStatus = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user) {
+      return next(new ApiError('User not authenticated', 401));
+    }
+
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = authReq.user._id;
 
     const command = await Command.findOne({ _id: id, userId });
     if (!command) {
@@ -78,10 +92,18 @@ export const getCommandStatus = catchAsync(
 // Update command response (from device)
 export const updateCommandResponse = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as DeviceAuthenticatedRequest;
+    if (!authReq.user) {
+      return next(new ApiError('User not authenticated', 401));
+    }
+    if (!authReq.device) {
+      return next(new ApiError('Device not authenticated', 401));
+    }
+
     const { id } = req.params;
     const { status, result, error } = req.body;
-    const userId = req.user.id;
-    const deviceId = req.device.id;
+    const userId = authReq.user._id;
+    const deviceId = authReq.device._id;
 
     // Find command
     const command = await Command.findOne({
@@ -125,8 +147,13 @@ export const updateCommandResponse = catchAsync(
 
 // Get user's command history
 export const getCommandHistory = catchAsync(
-  async (req: Request, res: Response) => {
-    const userId = req.user.id;
+  async (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user) {
+      return next(new ApiError('User not authenticated', 401));
+    }
+
+    const userId = authReq.user._id;
     const { deviceId, status, limit = 20, page = 1 } = req.query;
 
     // Build query
@@ -168,8 +195,13 @@ export const getCommandHistory = catchAsync(
 // Cancel a pending command
 export const cancelCommand = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user) {
+      return next(new ApiError('User not authenticated', 401));
+    }
+
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = authReq.user._id;
 
     const command = await Command.findOne({ _id: id, userId });
     if (!command) {

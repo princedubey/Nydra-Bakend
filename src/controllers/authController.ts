@@ -3,6 +3,7 @@ import jwt, { Secret } from 'jsonwebtoken';
 import User from '../models/User';
 import { catchAsync } from '../utils/catchAsync';
 import { ApiError } from '../utils/apiError';
+import { AuthenticatedRequest } from '../types';
 
 // Generate JWT Token
 const generateToken = (id: string): string => {
@@ -92,8 +93,16 @@ export const login = catchAsync(
 
 // Get current user
 export const getCurrentUser = catchAsync(
-  async (req: Request, res: Response) => {
-    const user = await User.findById(req.user.id).select('-password');
+  async (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user) {
+      return next(new ApiError('User not authenticated', 401));
+    }
+
+    const user = await User.findById(authReq.user._id).select('-password');
+    if (!user) {
+      return next(new ApiError('User not found', 404));
+    }
 
     res.status(200).json({
       success: true,

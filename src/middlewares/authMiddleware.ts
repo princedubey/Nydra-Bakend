@@ -4,6 +4,7 @@ import User from '../models/User';
 import Device from '../models/Device';
 import { catchAsync } from '../utils/catchAsync';
 import { ApiError } from '../utils/apiError';
+import { AuthenticatedRequest, DeviceAuthenticatedRequest } from '../types';
 
 // Verify JWT token
 const verifyToken = (token: string): any => {
@@ -39,7 +40,7 @@ export const authenticate = catchAsync(
     }
 
     // Set user in request
-    req.user = user;
+    (req as AuthenticatedRequest).user = user;
     next();
   }
 );
@@ -47,10 +48,6 @@ export const authenticate = catchAsync(
 // Authenticate device middleware
 export const authenticateDevice = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return next(new ApiError('User not authenticated', 401));
-    }
-
     // Get device token from header
     const deviceToken = req.headers['x-device-token'] as string;
 
@@ -64,10 +61,15 @@ export const authenticateDevice = catchAsync(
       return next(new ApiError('Invalid device token', 401));
     }
 
+    // Check if user is authenticated
+    if (!(req as AuthenticatedRequest).user) {
+      return next(new ApiError('User not authenticated', 401));
+    }
+
     // Check if device exists and belongs to user
     const device = await Device.findOne({
       deviceId: decoded.deviceId,
-      userId: req.user._id,
+      userId: (req as AuthenticatedRequest).user._id,
     });
 
     if (!device) {
@@ -75,7 +77,7 @@ export const authenticateDevice = catchAsync(
     }
 
     // Set device in request
-    req.device = device;
+    (req as DeviceAuthenticatedRequest).device = device;
     next();
   }
 );
