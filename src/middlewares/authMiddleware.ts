@@ -5,16 +5,6 @@ import Device from '../models/Device';
 import { catchAsync } from '../utils/catchAsync';
 import { ApiError } from '../utils/apiError';
 
-// Extend Express Request interface
-declare global {
-  namespace Express {
-    interface Request {
-      user: any;
-      device?: any;
-    }
-  }
-}
-
 // Verify JWT token
 const verifyToken = (token: string): any => {
   try {
@@ -57,6 +47,10 @@ export const authenticate = catchAsync(
 // Authenticate device middleware
 export const authenticateDevice = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return next(new ApiError('User not authenticated', 401));
+    }
+
     // Get device token from header
     const deviceToken = req.headers['x-device-token'] as string;
 
