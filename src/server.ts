@@ -67,8 +67,10 @@ app.use(errorHandler);
 // Create HTTP server
 const server = createServer(app);
 
-// Initialize WebSocket
-initWebSocket(server);
+// Initialize WebSocket only in non-serverless environment
+if (process.env.NODE_ENV !== 'production') {
+  initWebSocket(server);
+}
 
 // Start server
 const startServer = async () => {
@@ -76,27 +78,35 @@ const startServer = async () => {
     // Connect to MongoDB
     await connectDB();
     
-    // Initialize Redis (optional)
-    await initRedis();
+    // Initialize Redis only in non-serverless environment
+    if (process.env.NODE_ENV !== 'production') {
+      await initRedis();
+    }
     
-    // Start HTTP server
-    server.listen(PORT, () => {
-      logger.info(`Server running on port ${PORT}`);
-    });
+    // Start HTTP server only in non-serverless environment
+    if (process.env.NODE_ENV !== 'production') {
+      server.listen(PORT, () => {
+        logger.info(`Server running on port ${PORT}`);
+      });
+    }
   } catch (error) {
     logger.error('Failed to start server:', error);
-    process.exit(1);
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    }
   }
 };
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   logger.error('Unhandled Rejection:', err);
-  process.exit(1);
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  }
 });
 
 // Export for Vercel
-export { app, server };
+export default app;
 
 // Start server if not in Vercel environment
 if (process.env.NODE_ENV !== 'production') {
