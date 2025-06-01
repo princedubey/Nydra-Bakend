@@ -1,117 +1,104 @@
-import express from "express"
-import { createServer } from "http"
-import { Server } from "socket.io"
-import cors from "cors"
-import helmet from "helmet"
-import compression from "compression"
-import rateLimit from "express-rate-limit"
-import dotenv from "dotenv"
+import 'dotenv/config';
+import express, { Application } from 'express';
+import { createServer } from 'http';
+import cors from 'cors';
+import helmet from 'helmet';
+import { connectDB } from './config/database';
+import { initRedis } from './config/redis';
+import { initWebSocket } from './websocket';
+import { errorHandler } from './middlewares/errorMiddleware';
+import { requestLogger } from './middlewares/loggerMiddleware';
+import authRoutes from './routes/authRoutes';
+import deviceRoutes from './routes/deviceRoutes';
+import commandRoutes from './routes/commandRoutes';
+import logger from './utils/logger';
 
-import { connectDatabase } from "./config/database"
-import { connectRedis } from "./config/redis"
-import { setupQueues } from "./config/queues"
-import { logger } from "./utils/logger"
-import { errorHandler } from "./middlewares/errorHandler"
-import { requestLogger } from "./middlewares/requestLogger"
+const app: Application = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(helmet());
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(requestLogger);
 
 // Routes
-import authRoutes from "./routes/auth.routes"
-import deviceRoutes from "./routes/device.routes"
-import commandRoutes from "./routes/command.routes"
+app.use('/api/auth', authRoutes);
+app.use('/api/devices', deviceRoutes);
+app.use('/api/commands', commandRoutes);
 
-// WebSocket
-import { setupWebSocket } from "./websocket/socketHandler"
-
-dotenv.config()
-
-const app = express()
-const server = createServer(app)
-const io = new Server(server, {
-  cors: {
-    origin: process.env.FRONTEND_URL || "*",
-    methods: ["GET", "POST"],
-  },
-})
-
-const PORT = process.env.PORT || 3000
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: "Too many requests from this IP, please try again later.",
-})
-
-// Middlewares
-app.use(helmet())
-app.use(cors())
-app.use(compression())
-app.use(limiter)
-app.use(express.json({ limit: "10mb" }))
-app.use(express.urlencoded({ extended: true }))
-app.use(requestLogger)
-
-// Health check
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "OK",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-  })
-})
-
-// API Routes
-app.use("/api/auth", authRoutes)
-app.use("/api/devices", deviceRoutes)
-app.use("/api/commands", commandRoutes)
-
-// WebSocket setup
-setupWebSocket(io)
-
-// Error handling
-app.use(errorHandler)
-
-// 404 handler
-app.use("*", (req, res) => {
-  res.status(404).json({ error: "Route not found" })
-})
-
-async function startServer() {
+// Health check endpoint
+app.get('/health', async (req, res) => {
   try {
-    // Connect to databases
-    await connectDatabase()
-    await connectRedis()
+    const healthData = {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      database: {
+        status: 'connected',
+        // Add more DB stats if needed
+      },
+      redis: {
+        status: 'optional',
+        // Add Redis stats if available
+      },
+      websocket: {
+        status: 'active',
+        // Add WebSocket stats if needed
+      }
+    };
 
-    // Setup queues
-    await setupQueues()
-
-    server.listen(PORT, () => {
-      logger.info(`🚀 Nydra Backend Server running on port ${PORT}`)
-      logger.info(`📊 Health check available at http://localhost:${PORT}/health`)
-    })
+    res.status(200).json(healthData);
   } catch (error) {
-    logger.error("Failed to start server:", error)
-    process.exit(1)
+    logger.error('Health check failed:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Health check failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
+});
+
+// Error handling middleware
+app.use(errorHandler);
+
+// Create HTTP server
+const server = createServer(app);
+
+// Initialize WebSocket
+initWebSocket(server);
+
+// Start server
+const startServer = async () => {
+  try {
+    // Connect to MongoDB
+    await connectDB();
+    
+    // Initialize Redis (optional)
+    await initRedis();
+    
+    // Start HTTP server
+    server.listen(PORT, () => {
+      logger.info(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  logger.error('Unhandled Rejection:', err);
+  process.exit(1);
+});
+
+// Export for Vercel
+export { app, server };
+
+// Start server if not in Vercel environment
+if (process.env.NODE_ENV !== 'production') {
+  startServer();
 }
-
-// Graceful shutdown
-process.on("SIGTERM", () => {
-  logger.info("SIGTERM received, shutting down gracefully")
-  server.close(() => {
-    logger.info("Process terminated")
-    process.exit(0)
-  })
-})
-
-process.on("SIGINT", () => {
-  logger.info("SIGINT received, shutting down gracefully")
-  server.close(() => {
-    logger.info("Process terminated")
-    process.exit(0)
-  })
-})
-
-startServer()
-
-export { app, io }

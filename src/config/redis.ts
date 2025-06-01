@@ -1,38 +1,41 @@
-import Redis from "ioredis"
-import { logger } from "../utils/logger"
+import { createClient } from 'redis';
+import logger from '../utils/logger';
 
-let redisClient: Redis
+// Redis client
+let redisClient: any;
+let hasLoggedError = false;
 
-export const connectRedis = async (): Promise<void> => {
+export const initRedis = async (): Promise<void> => {
   try {
-    redisClient = new Redis({
-      host: process.env.REDIS_HOST || "localhost",
-      port: Number.parseInt(process.env.REDIS_PORT || "6379"),
-      password: process.env.REDIS_PASSWORD,
-      retryDelayOnFailover: 100,
-      maxRetriesPerRequest: 3,
-    })
-
-    redisClient.on("connect", () => {
-      logger.info("✅ Connected to Redis")
-    })
-
-    redisClient.on("error", (error) => {
-      logger.error("Redis connection error:", error)
-    })
-
-    redisClient.on("close", () => {
-      logger.warn("Redis connection closed")
-    })
+    const host = process.env.REDIS_HOST || 'localhost';
+    const port = parseInt(process.env.REDIS_PORT || '6379');
+    
+    redisClient = createClient({
+      url: `redis://${host}:${port}`,
+      socket: {
+        reconnectStrategy: false // Completely disable reconnection
+      }
+    });
+    
+    // Remove error handler since we're not reconnecting
+    await redisClient.connect();
+    logger.info('Redis connected');
+    
   } catch (error) {
-    logger.error("Failed to connect to Redis:", error)
-    throw error
+    if (!hasLoggedError) {
+      logger.warn('Redis connection failed - running without Redis');
+      hasLoggedError = true;
+    }
   }
-}
+};
 
-export const getRedisClient = (): Redis => {
+export const getRedisClient = () => {
   if (!redisClient) {
-    throw new Error("Redis client not initialized")
+    if (!hasLoggedError) {
+      logger.warn('Redis client not available');
+      hasLoggedError = true;
+    }
+    return null;
   }
-  return redisClient
-}
+  return redisClient;
+};
