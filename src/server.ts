@@ -29,7 +29,7 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/commands', commandRoutes);
 
 // Health check endpoint
-app.get('/health', async (req, res) => {
+app.get('/', async (req, res) => {
   try {
     const healthData = {
       status: 'ok',
